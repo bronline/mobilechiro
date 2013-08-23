@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+ "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Ajax with jQuery - adding error handling</title>
+
+  <style>
+        *{ margin:0; padding:0; }
+        body{border:2em solid #fff;font-family:futura,verdana,sans-serif;}
+        a{color:#369}
+        ul{margin:1em}
+        h1{font-size:25px;color:#036;}
+        h2{font-size:18px;margin:10px 0;color:#69c;}
+        #target,#code{ border:1px solid #999; background:#eee; padding:1em; -moz-border-radius:5px; border-radius:5px; -webkit-border-radius:5px; }
+        #target{ overflow:auto; max-height:200px; }
+        #ft{font-size:12px;text-align:right;}
+        .ajaxtrigger span{font-weight:bold;color:#000}
+        .ajaxtrigger span.error{color:#c00}
+    </style>
+</head>
+<body>
+<div id="doc" class="yui-t7">
+  <div id="hd" role="banner"><h1>Ajax with jQuery - adding error handling</h1></div>
+  <div id="bd" role="main">
+    <h2>Demo</h2>
+    <ul>
+      <li><a href="ajaxcontent.html" class="ajaxtrigger">Load Ajax Content</a></li>
+      <li><a href="http://localhost:8080/medical/testing.jsp" class="ajaxtrigger">see developer.yahoo.com</a></li>
+      <li><a href="borked" class="ajaxtrigger">this is a broken link</a></li>
+      <li><a href="http://borked" class="ajaxtrigger">this is an external broken link</a></li>
+      <li><a href="waiting-for-godot.php" class="ajaxtrigger">this times out</a></li>
+    </ul>
+    <div id="target"></div>
+    <ul id="nav"><li><a href="index.html">back home</a></li></ul>
+  </div>
+  <div id="ft" role="contentinfo"><p>Written by <a href="http://wait-till-i.com/index.php">Christian Heilmann</a>.</p></div>
+</div>
+<script src="http://code.jquery.com/jquery-latest.pack.js"></script>
+<script src="http://dev.jquery.com/view/tags/ui/latest/ui/effects.core.js"></script>
+<script src="http://dev.jquery.com/view/tags/ui/latest/ui/effects.highlight.js"></script>
+<script type="text/javascript">
+$(document).ready(function(){
+  var container = $('#target');
+  container.attr('tabIndex','-1');
+  $('.ajaxtrigger').click(function(){
+    var trigger = $(this);
+    var url = trigger.attr('href');
+    if(!trigger.hasClass('loaded')){
+      trigger.append('<span></span>');
+      trigger.addClass('loaded');
+      var msg = trigger.find('span::last');
+    } else {
+      var msg = trigger.find('span::last');
+    }
+    doAjax(url,msg,container);
+    return false;
+  });
+
+  function doAjax(url,msg,container){
+    // if the URL starts with http
+    if(url.match('^http')){
+      // assemble the YQL call
+      msg.removeClass('error');
+      msg.html(' (loading...)');
+      $.getJSON("http://query.yahooapis.com/v1/public/yql?"+
+                "q=select%20*%20from%20html%20where%20url%3D%22"+
+                encodeURIComponent(url)+
+                "%22&format=xml'&callback=?",
+        function(data){
+          if(data.results[0]){
+            var data = filterData(data.results[0]);
+            msg.html(' (ready.)');
+            container.
+              html(data).
+                focus().
+                  effect("highlight",{},1000);
+          } else {
+            msg.html(' (error!)');
+            msg.addClass('error');
+            var errormsg = '<p>Error: could not load the page.</p>';
+            container.
+              html(errormsg).
+                focus().
+                  effect('highlight',{color:'#c00'},1000);
+          }
+        }
+      );
+    } else {
+      $.ajax({
+        url: url,
+        timeout:5000,
+        success: function(data){
+          msg.html(' (ready.)');
+          container.
+            html(data).
+              focus().
+                effect("highlight",{},1000);
+        },
+        error: function(req,error){
+          msg.html(' (error!)');
+          msg.addClass('error');
+          if(error === 'error'){error = req.statusText;}
+          var errormsg = 'There was a communication error: '+error;
+            container.
+              html(errormsg).
+                focus().
+                  effect('highlight',{color:'#c00'},1000);
+        },
+        beforeSend: function(data){
+          msg.removeClass('error');
+          msg.html(' (loading...)');
+        }
+      });
+    }
+  }
+  function filterData(data){
+    // filter all the nasties out
+    // no body tags
+    data = data.replace(/<?\/body[^>]*>/g,'');
+    // no linebreaks
+    data = data.replace(/[\r|\n]+/g,'');
+    // no comments
+    data = data.replace(/<--[\S\s]*?-->/g,'');
+    // no noscript blocks
+    data = data.replace(/<noscript[^>]*>[\S\s]*?<\/noscript>/g,'');
+    // no script blocks
+    data = data.replace(/<script[^>]*>[\S\s]*?<\/script>/g,'');
+    // no self closing scripts
+    data = data.replace(/<script.*\/>/,'');
+    // [... add as needed ...]
+    return data;
+  }
+});
+
+
+</script>
+</body>
+</html>
+

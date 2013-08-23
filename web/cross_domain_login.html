@@ -1,0 +1,157 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+ "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>Ajax with jQuery - adding error handling</title>
+  <link rel="stylesheet" type="text/css" href="http://priorityexpressbilling.com/css/pxb.css" />
+
+  <style>
+        *{ margin:0; padding:0; }
+/*        body{border:2em solid #fff;font-family:futura,verdana,sans-serif;}  */
+        a{color:#369}
+        ul{margin:1em}
+        h1{font-size:25px;color:#036;}
+        h2{font-size:18px;margin:10px 0;color:#69c;}
+/*        #target,#code{ border:1px solid #999; background:#eee; padding:1em; -moz-border-radius:5px; border-radius:5px; -webkit-border-radius:5px; }  */
+        #target{ overflow:auto; max-height:200px; }
+        #ft{font-size:12px;text-align:right;}
+        .ajaxtrigger span{font-weight:bold;color:#000}
+        .ajaxtrigger span.error{color:#c00}
+        .error { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div style="margin-top: 10%">
+    <div align="center" style="width: 100%; height: 100%; position:relative; ">
+        <div style="width: 400px; position: absolute; top: 30%; left: 20%; height: 10em; margin-top: -5em;">
+            <div id="logo" style="position: absolute; left: 0px;"><img src="http://priorityexpressbilling.com/img/pxb.png" height="50" alt="Priority Express Billing" /></div>
+                <div style="position: absolute; left: 5px; top: 55px;">
+
+                <v:roundrect fillColor="#e0e0e0" style="height: 100px; width: 350px; padding: 3px;" arcsize="0.1" strokecolor="#e0e0e0" strokeweight="0px">
+<!--                    <form id="loginForm" name="loginForm" action="" onSubmit="fnSubmitForm()" >    -->
+                        <table width="90%" cellpadding="0" cellspacing="0" border="0" style="position: absolute; top: 10px; left: 10px;">
+                            <tr><td><b>User:</b></td><td><input type="text" name="userName" id="userName" class="tBoxText" size="15" maxlength="25" value=""></td></tr>
+                            <tr><td><b>Password:</b></td><td><input type="password" name="password" id="password" class="tBoxText" size="15" maxlength="25"></td></tr>
+                            <tr style="height: 45px;"><td colspan=2 align="left"><input type="button" value=" login " onClick="fnSubmitForm()"></td></tr>
+                        </table>
+<!--                    </form>  -->
+                <div id="target" style="width: 155px; position: absolute; left: 0px; top: 115px; "></div>
+                <div id="errorMessage" style="position: absolute; left: 75px; top: 65px;"></div>
+                </v:roundrect>
+            </div>
+
+
+        </div>
+    </div>
+    </div>
+
+<script src="http://code.jquery.com/jquery-latest.pack.js"></script>
+<script src="http://dev.jquery.com/view/tags/ui/latest/ui/effects.core.js"></script>
+<script src="http://dev.jquery.com/view/tags/ui/latest/ui/effects.highlight.js"></script>
+
+<script type="text/javascript">
+  function fnSubmitForm() {
+    var dataString="userName="+$('#userName').val()+"&password="+$('#password').val();
+    var url="http://chiropracticeonline.net/maint/checkuser_ajax.jsp?" + dataString;
+    var container = $('#target');
+    container.attr('tabIndex','-1');
+    var trigger = $('#errorMessage');
+    if(!trigger.hasClass('loaded')){
+      trigger.append('<span></span>');
+      trigger.addClass('loaded');
+      var msg = trigger.find('span::last');
+    } else {
+      var msg = trigger.find('span::last');
+    }
+
+    doAjax(url,msg,container);
+    return false;
+  }
+
+  function doAjax(url,msg,container){
+    // if the URL starts with http
+    if(url.match('^http')){
+      // assemble the YQL call
+      msg.html('');
+      msg.removeClass('error');
+//      msg.html(' (loading...)');
+      $.getJSON("http://query.yahooapis.com/v1/public/yql?"+
+                "q=select%20*%20from%20html%20where%20url%3D%22"+
+                encodeURIComponent(url)+
+                "%22&format=xml'&callback=?",
+        function(data){
+          if(data.results[0]){
+            var data = filterData(data.results[0]);
+            if(data.indexOf("redirect:")>-1) { window.location.href=data.substring(data.indexOf("redirect:")+9); }
+            else {
+//            msg.html(' (error!)');
+            msg.addClass('error');
+            msg.
+              html(data.substring(data.indexOf("errorMessage:")+13)).
+                focus().
+                  effect('highlight',{color:'#c00'},1000);
+            }
+          } else {
+            msg.html(' (error!)');
+            msg.addClass('error');
+            var errormsg = '<p>Error: could not load the page.</p>';
+            container.
+              html(errormsg).
+                focus().
+                  effect('highlight',{color:'#c00'},1000);
+          }
+        }
+      );
+    } else {
+      $.ajax({
+        url: url,
+        timeout:5000,
+        success: function(data){
+          msg.html(' (ready.)');
+          container.
+            html(data).
+              focus().
+                effect("highlight",{},1000);
+        },
+        error: function(req,error){
+          msg.html(' (error!)');
+          msg.addClass('error');
+          if(error === 'error'){error = req.statusText;}
+          var errormsg = 'There was a communication error: '+error;
+            container.
+              html(errormsg).
+                focus().
+                  effect('highlight',{color:'#c00'},1000);
+        },
+        beforeSend: function(data){
+          msg.removeClass('error');
+          msg.html(' (loading...)');
+        }
+      });
+    }
+  }
+  function filterData(data){
+    // filter all the nasties out
+    // no body tags
+    data = data.replace(/<?\/body[^>]*>/g,'');
+    // no linebreaks
+    data = data.replace(/[\r|\n]+/g,'');
+    // no comments
+    data = data.replace(/<--[\S\s]*?-->/g,'');
+    // no noscript blocks
+    data = data.replace(/<noscript[^>]*>[\S\s]*?<\/noscript>/g,'');
+    // no script blocks
+    data = data.replace(/<script[^>]*>[\S\s]*?<\/script>/g,'');
+    // no self closing scripts
+    data = data.replace(/<script.*\/>/,'');
+    // [... add as needed ...]
+    data = data.replace(/<?\/p[^>]*>/g,'');
+    return data;
+  }
+
+
+
+</script>
+</body>
+</html>
